@@ -19,7 +19,7 @@
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/ts-easy.git
+git clone https://github.com/n1kkl/_ts-easy-personal.git ts-easy
 cd ts-easy
 ```
 
