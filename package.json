@@ -4,9 +4,8 @@
   "description": "",
   "main": "dist/main.js",
   "scripts": {
-    "dev": "dotenv -e .env -- ts-node-dev --respawn --transpile-only ./src/main.ts",
+    "dev": "tsup --config build.ts --watch",
     "build": "tsup --config build.ts",
-    "start": "dotenv -e .env -- node ./dist/main.js",
     "lint": "eslint",
     "lint:fix": "eslint --fix",
     "format": "pnpm dlx prettier --config .prettierrc 'src/**/*.ts' --write"
@@ -26,10 +25,9 @@
     "typescript": "*",
     "typescript-eslint": "^7.11.0"
   },
-  "dependencies": {
-    "dotenv": "^16.4.5",
-    "dotenv-cli": "^7.4.2"
-  },
   "author": "n1kkl",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "globals": "^15.14.0"
+  }
 }

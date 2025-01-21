@@ -1,13 +1,12 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: ['src/main.ts'],
-  splitting: false,
-  sourcemap: true,
   clean: true,
-  bundle: true,
+  dts: true,
+  entry: ["src/index.ts"],
+  format: ["esm"],
+  sourcemap: true,
   minify: true,
-  platform: 'node',
-  tsconfig: 'tsconfig.json',
-  keepNames: true,
+  target: "esnext",
+  outDir: "dist",
 });
