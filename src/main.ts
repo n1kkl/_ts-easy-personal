@@ -1,42 +1,70 @@
 import 'dotenv/config';
-import { Client, Message } from 'discord.js-selfbot-v13';
-import Fastify from 'fastify';
-import cors from '@fastify/cors';
-import FastifySSEPlugin from 'fastify-sse-v2';
-import EventEmitter from 'eventemitter3';
-import Redis from 'ioredis';
+import { Client } from 'discord.js-selfbot-v13';
 import { db } from './db';
-import { messages } from './db/schema';
-
-const fastify = Fastify({
-  logger: true,
-});
+import { channels, guilds, messages } from './db/schema';
+import { users } from './db/schema/users.schema';
+import { eq, InferSelectModel } from 'drizzle-orm';
+import { logger } from './logger';
 
 const client = new Client();
-const events = new EventEmitter();
 
 client.on('ready', () => {
-  console.log(`Logged in as ${client.user?.tag}`);
+  logger.info(`Logged in as ${client.user?.tag}`, {});
 });
 
 client.on('messageCreate', async (message) => {
-  if (message.author.bot || !message.content) return;
+  if (!message.content) return;
 
-  events.emit('message', message);
+  const [user] = await db.insert(users).values({
+    userId: message.author.id,
+    name: message.author.username,
+    isBot: message.author.bot,
+  }).onConflictDoUpdate({
+    target: [users.userId],
+    set: {
+      name: message.author.username,
+    },
+  }).returning();
+
+  let guild: InferSelectModel<typeof guilds> | null = null;
+  if (message.guild) {
+    [guild] = await db.insert(guilds).values({
+      guildId: message.guild.id,
+      name: message.guild.name,
+    }).onConflictDoUpdate({
+      target: [guilds.guildId],
+      set: {
+        name: message.guild.name,
+      },
+    }).returning();
+  }
+
+  const [channel] = await db.insert(channels).values({
+    channelId: message.channel.id,
+    guildId: guild?.id,
+    name: 'name' in message.channel ? message.channel.name : '',
+    type: message.channel.type,
+  }).onConflictDoUpdate({
+    target: [channels.channelId],
+    set: {
+      name: 'name' in message.channel ? message.channel.name : '',
+      type: message.channel.type,
+    },
+  }).returning();
+
   await db.insert(messages).values({
     content: message.content,
-    authorId: message.author.id,
-    authorName: message.author.username,
-    guildId: message.guild?.id,
-    guildName: message.guild?.name,
-    channelId: message.channel.id,
-    channelName: 'name' in message.channel ? message.channel.name : '',
-  })
+    messageId: message.id,
+    authorId: user.id,
+    channelId: channel.id,
+    isBot: message.author.bot,
+  });
+});
+
+client.on('messageDelete', async (message) => {
+  await db.update(messages).set({
+    isDeleted: true,
+  }).where(eq(messages.messageId, message.id));
 });
 
 client.login(process.env.DISCORD_TOKEN);
-
-fastify.register(cors, {
-  // put your options here
-});
-fastify.register(FastifySSEPlugin);
