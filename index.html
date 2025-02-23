@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+  <style>
+      * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+      }
+
+      body {
+          font-family: system-ui, sans-serif;
+          color: #222;
+      }
+
+      #message-speed, #char-speed {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          padding: 10px;
+          border-bottom: 1px solid #ccc;
+      }
+
+      #messages {
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
+          padding: 10px;
+          overflow-y: auto;
+      }
+
+      .message {
+          display: flex;
+          flex-direction: column;
+          padding: 10px;
+          border: 1px solid #ccc;
+          border-radius: 5px;
+      }
+
+      .message__author {
+          display: flex;
+          align-items: center;
+          gap: 7px;
+      }
+
+      .message__author-avatar {
+          width: 25px;
+          height: 25px;
+          display: flex;
+          align-items: center;
+      }
+
+      .message__author-avatar img {
+          width: 100%;
+          border-radius: 50%;
+      }
+
+      .message__author-name {
+          font-weight: 600;
+          font-size: .8rem;
+      }
+
+      .message__content {
+          margin-top: 8px;
+          font-size: .9rem;
+      }
+  </style>
+</head>
+<body>
+<div id="message-speed">
+  <span id="mps">0</span>
+  <span>mps</span>
+</div>
+<pre id="test"></pre>
+<div id="messages">
+  <div class="message">
+    <div class="message__author">
+        <span class="message__author-avatar">
+          <img src="https://cdn.discordapp.com/avatars/261894875820195850/58ba4fa932ddfd890205406d0295e109.webp"
+               alt="avatar">
+        </span>
+      <span class="message__author-name">angel_light</span>
+    </div>
+    <div class="message__content">We aren’t failing the major order. With an average of 70k divers on Fori, that’s a
+      guaranteed victory on any planet.
+    </div>
+  </div>
+</div>
+<div style="display: none">
+  <div id="message-template">
+    <div class="message">
+      <div class="message__author">
+        <span class="message__author-name">{authorName}</span>
+      </div>
+      <div class="message__content">{content}</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const evtSource = new EventSource('http://localhost:3000/stream');
+  let messageCount = 0;
+  let start = Date.now();
+  let messagePerSecond = 0;
+
+  let guildCounts = {};
+  let guildMps = {};
+  let guildNames = {};
+
+  evtSource.addEventListener('message', (event) => {
+    const data = JSON.parse(event.data);
+    let template = document.getElementById('message-template').innerHTML;
+    template = template.replace('{authorName}', data.author.username);
+    template = template.replace('{content}', data.content);
+
+    document.getElementById('messages').innerHTML = template;
+    messageCount++;
+    guildCounts[data.guild.id] ??= 0;
+    guildCounts[data.guild.id]++;
+    guildNames[data.guild.id] = data.guild.name;
+  });
+
+  setInterval(() => {
+    messagePerSecond = messageCount / ((Date.now() - start) / 1000);
+    document.getElementById('mps').innerText = messagePerSecond.toFixed(2);
+
+    for (const [guildId, count] of Object.entries(guildCounts)) {
+      guildMps[guildId] ??= {name: guildNames[guildId], mps: 0};
+      guildMps[guildId].mps = count / ((Date.now() - start) / 1000);
+    }
+
+    guildMps = Object.fromEntries(Object.entries(guildMps).sort(([, a], [, b]) => b.mps - a.mps));
+    document.getElementById('test').innerText = JSON.stringify(guildMps, null, 2);
+  }, 100);
+</script>
+</body>
+</html>
